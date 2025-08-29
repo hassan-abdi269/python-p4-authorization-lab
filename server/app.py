@@ -4,7 +4,9 @@ from flask import Flask, make_response, jsonify, request, session
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
 
-from models import db, Article, User
+from extensions import db
+from models import Article, User
+
 
 app = Flask(__name__)
 app.secret_key = b'Y\xf1Xz\x00\xad|eQ\x80t \xca\x1a\x10K'
@@ -87,12 +89,27 @@ class CheckSession(Resource):
 class MemberOnlyIndex(Resource):
     
     def get(self):
-        pass
+        # Only allow access if logged in
+        if not session.get('user_id'):
+            return {"error": "Unauthorized"}, 401
+
+        articles = Article.query.filter_by(is_member_only=True).all()
+        return [article.to_dict() for article in articles], 200
+
 
 class MemberOnlyArticle(Resource):
     
     def get(self, id):
-        pass
+        # Only allow access if logged in
+        if not session.get('user_id'):
+            return {"error": "Unauthorized"}, 401
+
+        article = Article.query.filter_by(id=id, is_member_only=True).first()
+        if not article:
+            return {"error": "Not found"}, 404
+
+        return article.to_dict(), 200
+
 
 api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(IndexArticle, '/articles', endpoint='article_list')
